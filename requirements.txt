@@ -30,17 +30,17 @@ httptools==0.9.0
     # via uvicorn
 idna==3.20
     # via anyio
-msgpack==1.2.3
+msgpack==1.2.4
     # via -r requirements.in
 opentelemetry-api==1.45.1
     # via fastapi
 pycparser==3.12
     # via cffi
-pydantic==2.14.1
+pydantic==2.14.2
     # via
     #   -r requirements.in
     #   fastapi
-pydantic-core==2.50.1
+pydantic-core==2.50.2
     # via pydantic
 pynacl==1.6.2
     # via -r requirements.in
