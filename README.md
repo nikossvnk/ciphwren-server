@@ -172,7 +172,8 @@ To run it in production, behind a reverse proxy that takes care of HTTPS, see [d
 
 # Testing
 
-Docker images named `etesync/test-server:<version>` and `:latest` are available for testing etesync clients.
+Docker images named `etesync/test-server:<version>` and `:latest` are available for testing etesync clients (amd64 only).
+This fork publishes the same image for amd64 and arm64 as `ghcr.io/nikossvnk/etesync-server/test-server:<version>` and `:latest` when a version tag is pushed. To build it locally for the machine's own architecture, run `docker/build.sh`.
 This docker image starts a server on port 3735 that supports user signup (without email confirmation), is in debug mode (thus supporting the reset endpoint), and stores its data locally.
 It is in no way suitable for production usage, but is able to start up quickly and makes a good component of CI for etesync clients and users of those clients.
 
