@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.15.3
+- Fix "database is locked" errors on SQLite when several changes are made at the same time
+- Fix logging in to the admin site, which always failed with "CSRF verification failed"
+- Update the dependencies, including msgpack (GHSA-j8c6-9vc5-hj6x), pydantic (GHSA-qpmf-fgh3-ff25, GHSA-3r8g-cqwr-jr29) and opentelemetry-api (CVE-2026-114603). The images run Python 3.14
+- Publish the test-server image too, for amd64 and arm64, as `ghcr.io/<owner>/<repository>/test-server`
+- The test server keeps idle connections open for 75 seconds, fixing "socket hang up" errors with Node clients
+- Deploy: Caddy can serve other sites too (`/etc/caddy/sites/*.caddy`), the containers' logs are limited in size, and fail2ban bans repeat offenders for longer each time
+
 ## Version 0.15.2
 - Fix the health check of the server image, it failed unless 127.0.0.1 was one of the allowed hosts
 
