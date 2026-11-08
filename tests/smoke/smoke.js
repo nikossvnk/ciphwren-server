@@ -120,6 +120,21 @@ async function rejects(what, error, promise) {
   const admin = await fetch(`${serverUrl}/admin/login/`, { headers: { Origin: origin } });
   check("other sites may not use the admin site", admin.headers.get("access-control-allow-origin") === null);
 
+  // The pages for visitors with a browser: a neutral page that search engines don't index
+  const home = await fetch(`${serverUrl}/`);
+  const homeText = await home.text();
+  check("the main page says what the server is",
+    (home.status === 200) && homeText.includes("<h1>Etebase server</h1>") && !homeText.includes("It works"));
+  check("the main page has no links", !homeText.includes("<a "));
+  check("the main page is not indexed", homeText.includes('<meta name="robots" content="noindex, nofollow">'));
+  const robots = await fetch(`${serverUrl}/robots.txt`);
+  check("robots.txt keeps search engines out",
+    (robots.status === 200) && (await robots.text()) === "User-agent: *\nDisallow: /\n");
+  // The test server is in debug mode, where the API documentation is served
+  const openapi = await fetch(`${serverUrl}/openapi.json`);
+  check("the API documentation is served in debug mode",
+    (openapi.status === 200) && ("/api/v1/authentication/is_etebase/" in (await openapi.json()).paths));
+
   const members = await colMgr.getMemberManager(col).list();
   check("list the members of a collection", (members.data.length === 1) && (members.data[0].username === username));
 

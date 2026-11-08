@@ -41,6 +41,11 @@ def create_application(prefix="", middlewares=[]):
             "description": "Docs about the API specifications and clients.",
         },
         # FIXME: version="2.5.0",
+        # The API documentation lists every endpoint, which visitors of a production server don't need to see.
+        # Only served in debug mode (like the test server); clients don't use it.
+        docs_url="/docs" if settings.DEBUG else None,
+        redoc_url="/redoc" if settings.DEBUG else None,
+        openapi_url="/openapi.json" if settings.DEBUG else None,
     )
     VERSION = "v1"  # noqa: N806
     BASE_PATH = f"{prefix}/api/{VERSION}"  # noqa: N806

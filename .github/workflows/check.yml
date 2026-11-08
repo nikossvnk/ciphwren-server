@@ -90,6 +90,21 @@ jobs:
           expect "the static files are served" 200 $url/static/admin/css/base.css
           expect "it is not in debug mode" 404 -X POST $url/api/v1/test/authentication/reset/
           expect "other hosts are rejected" 400 -H "Host: other.example" $url/api/v1/authentication/is_etebase/
+          for path in /docs /redoc /openapi.json; do
+            expect "the API documentation is not served ($path)" 404 $url$path
+          done
+          check() {
+            if ! eval "$2"; then
+              echo "::error::$1"
+              exit 1
+            fi
+            echo "ok - $1"
+          }
+          home="$(curl -sf $url/)"
+          check "the main page says what the server is" 'grep -qF "<h1>Etebase server</h1>" <<<"$home"'
+          check "the main page has no placeholder text or links" '! grep -Eq "It works|<a " <<<"$home"'
+          check "the main page is not indexed" 'grep -qF "content=\"noindex, nofollow\"" <<<"$home"'
+          check "robots.txt keeps search engines out" '[ "$(curl -sf $url/robots.txt)" = "$(printf "User-agent: *\nDisallow: /")" ]'
           test "$(docker exec server id -un)" = etebase && echo "ok - it does not run as root"
 
       - name: Check that the health check works with a host name that isn't 127.0.0.1
