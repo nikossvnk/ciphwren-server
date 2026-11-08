@@ -19,7 +19,7 @@ services:
     # Not published, it's only reachable through Caddy
 
   caddy:
-    image: caddy:2.11.6-alpine
+    image: caddy:2.11.9-alpine
     restart: unless-stopped
     # Docker keeps the logs of containers forever unless they are limited
     logging:
