@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 0.15.4
+- The main page no longer says "It works!" with a link to the setup instructions: it's a neutral page that says what the server is and how to use it, without links, and asks search engines not to index it
+- Add a `robots.txt` that keeps search engines out
+- The API documentation (`/docs`, `/redoc`, `/openapi.json`) is only served in debug mode, like on the test server
+
 ## Version 0.15.3
 - Fix "database is locked" errors on SQLite when several changes are made at the same time
 - Fix logging in to the admin site, which always failed with "CSRF verification failed"
