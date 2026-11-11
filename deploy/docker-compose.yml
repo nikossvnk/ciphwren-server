@@ -3,7 +3,7 @@
 
 services:
   etebase:
-    image: ${ETEBASE_IMAGE:-ghcr.io/nikossvnk/etesync-server}:${ETEBASE_VERSION:?Set ETEBASE_VERSION in .env}
+    image: ${ETEBASE_IMAGE:-ghcr.io/nikossvnk/ciphwren-server}:${ETEBASE_VERSION:?Set ETEBASE_VERSION in .env}
     restart: unless-stopped
     # Docker keeps the logs of containers forever unless they are limited
     logging:

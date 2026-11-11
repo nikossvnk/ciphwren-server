@@ -1,6 +1,6 @@
 <p align="center">
   <img width="120" src="icon.svg" />
-  <h1 align="center">Etebase - Encrypt Everything</h1>
+  <h1 align="center">Ciphwren Server</h1>
 </p>
 
 > [!NOTE]
@@ -107,12 +107,12 @@ Create yourself an admin user:
 ./manage.py createsuperuser
 ```
 
-At this stage you need to create accounts to be used with the EteSync apps. To do that, please go to:
-`www.your-etesync-install.com/admin` and create a new user to be used with the service. No need to set
+At this stage you need to create accounts to be used with the apps (Ciphwren or other Etebase apps). To do that, please go to:
+`etebase.example.com/admin` and create a new user to be used with the service. No need to set
 a password, as Etebase uses a zero-knowledge proof for authentication, so the user will just create
 a password when creating the account from the apps.
 
-After this user has been created, you can use any of the EteSync apps to signup (or login) with the same username and
+After this user has been created, you can use any of the apps to sign up (or login) with the same username and
 email in order to set up the account. The password used at that point will be used to setup the account.
 Don't forget to set your custom server address under "Advanced".
 
@@ -124,8 +124,8 @@ setting. You can revoke this key by deleting the `secret.txt` file and the
 next time the app is run, a new one will be generated. Make sure you keep
 the `secret.txt` file secret (e.g. don’t accidentally commit it to version
 control). However, backing it up is okay, and it makes it easier to restore
-the database to a new EteSync server, but it's not essential. If you want to
-change to a more secure system for storing secrets, edit `etesync_server/settings.py`
+the database to a new Etebase server, but it's not essential. If you want to
+change to a more secure system for storing secrets, edit `etebase_server/settings.py`
 and implement your own method for setting `SECRET_KEY` (remove the line
 where it uses the `get_secret_from_file` function).  Read the Django docs
 for more information about the `SECRET_KEY` and its uses.
@@ -172,10 +172,10 @@ To run it in production, behind a reverse proxy that takes care of HTTPS, see [d
 
 # Testing
 
-Docker images named `etesync/test-server:<version>` and `:latest` are available for testing etesync clients (amd64 only).
-This fork publishes the same image for amd64 and arm64 as `ghcr.io/nikossvnk/etesync-server/test-server:<version>` and `:latest` when a version tag is pushed. To build it locally for the machine's own architecture, run `docker/build.sh`.
+Docker images named `etesync/test-server:<version>` and `:latest` are available for testing Etebase clients (amd64 only).
+This fork publishes the same image for amd64 and arm64 as `ghcr.io/nikossvnk/ciphwren-server/test-server:<version>` and `:latest` when a version tag is pushed. To build it locally for the machine's own architecture, run `docker/build.sh`.
 This docker image starts a server on port 3735 that supports user signup (without email confirmation), is in debug mode (thus supporting the reset endpoint), and stores its data locally.
-It is in no way suitable for production usage, but is able to start up quickly and makes a good component of CI for etesync clients and users of those clients.
+It is in no way suitable for production usage, but is able to start up quickly and makes a good component of CI for Etebase clients and users of those clients.
 
 # User signup
 

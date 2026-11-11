@@ -79,7 +79,7 @@ jobs:
           context: .
           file: docker/test-server/Dockerfile
           platforms: linux/amd64,linux/arm64
-          build-args: ETESYNC_VERSION=${{ github.ref_name }}
+          build-args: CIPHWREN_VERSION=${{ github.ref_name }}
           push: true
           tags: ${{ steps.test-server-meta.outputs.tags }}
           labels: ${{ steps.test-server-meta.outputs.labels }}
