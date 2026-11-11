@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.15.5
+- Renamed to Ciphwren Server: the images are published as `ghcr.io/nikossvnk/ciphwren-server` and `ghcr.io/nikossvnk/ciphwren-server/test-server`, which the deploy files now use. The test server's build argument is `CIPHWREN_VERSION`
+- Update Caddy to 2.11.9 in the deploy files
+
 ## Version 0.15.4
 - The main page no longer says "It works!" with a link to the setup instructions: it's a neutral page that says what the server is and how to use it, without links, and asks search engines not to index it
 - Add a `robots.txt` that keeps search engines out
