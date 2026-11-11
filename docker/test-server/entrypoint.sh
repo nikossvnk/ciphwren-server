@@ -1,6 +1,6 @@
 #! /bin/sh
 
-echo "Running etesync test server ${ETESYNC_VERSION}"
+echo "Running the Ciphwren test server ${CIPHWREN_VERSION}"
 
 cd /app
 # Idle connections stay open longer than uvicorn's default of 5 seconds: clients that keep their

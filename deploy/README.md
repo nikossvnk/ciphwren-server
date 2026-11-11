@@ -11,7 +11,7 @@ The notes are end-to-end encrypted, so the server (and its backups) can't read t
 - A host name for the server, e.g. `notes.example.com`, with a DNS record pointing to the VPS
 - Ports 80 and 443 reachable from the internet (Caddy needs them to get the certificate)
 - The image to be pullable: packages on the GitHub container registry start out private, so either make the
-  `etesync-server` package public (in its package settings on GitHub), or log in on the VPS with a token that can read packages:
+  `ciphwren-server` package public (in its package settings on GitHub), or log in on the VPS with a token that can read packages:
   `docker login ghcr.io -u <github user>`
 
 ## Installing

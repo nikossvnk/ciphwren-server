@@ -1,6 +1,6 @@
 FROM python:3.14-alpine
 
-ARG ETESYNC_VERSION
+ARG CIPHWREN_VERSION
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
@@ -31,7 +31,7 @@ RUN set -ex ;\
     python manage.py migrate ;\
     python manage.py collectstatic --noinput
 
-ENV ETESYNC_VERSION=${ETESYNC_VERSION}
+ENV CIPHWREN_VERSION=${CIPHWREN_VERSION}
 VOLUME /data
 EXPOSE 3735
 

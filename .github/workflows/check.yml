@@ -62,7 +62,7 @@ jobs:
 
       - name: Build the images
         run: |
-          docker build -t test-server -f docker/test-server/Dockerfile --build-arg ETESYNC_VERSION=ci .
+          docker build -t test-server -f docker/test-server/Dockerfile --build-arg CIPHWREN_VERSION=ci .
           docker build -t server -f docker/server/Dockerfile .
 
       - name: Check the test server with the Etebase client

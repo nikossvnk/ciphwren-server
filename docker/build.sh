@@ -5,12 +5,12 @@
 
 TAG="${1:-latest}"
 
-echo "Building working copy to etesync/test-server:${TAG}"
+echo "Building working copy to ciphwren-server/test-server:${TAG}"
 
-ETESYNC_VERSION=$(git describe --tags)
+CIPHWREN_VERSION=$(git describe --tags)
 
 docker build \
-    --build-arg ETESYNC_VERSION=${ETESYNC_VERSION} \
-    -t etesync/test-server:${TAG} \
+    --build-arg CIPHWREN_VERSION=${CIPHWREN_VERSION} \
+    -t ciphwren-server/test-server:${TAG} \
     -f docker/test-server/Dockerfile \
     .
