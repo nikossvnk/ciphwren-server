@@ -1,9 +1,9 @@
-django>=5.2,<6.0
+django>=5.2.19,<6.0
 msgpack
 pynacl
-fastapi>=0.104
-pydantic>=2.14.2
+fastapi>=0.162.2
+pydantic>=2.14.3
 typing_extensions
 uvicorn[standard]
 aiofiles
-redis>=4.2.0rc1
+redis>=8.2.0b1
