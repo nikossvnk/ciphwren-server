@@ -7,12 +7,9 @@
 > **This is an independent fork** of the [Etebase server](https://github.com/etesync/server), the original
 > project of the EteSync authors. This fork is not affiliated with, endorsed by or supported by EteSync, Etebase or
 > [etesync.com](https://www.etesync.com) in any way. The history of the original project is kept as it is,
-> with its authors, and the changes of this fork follow it. The links to etebase.com and etesync.com below
-> are of the original project. Like the original, it's licensed under the AGPL-3.0.
+> with its authors, and the changes of this fork follow it. Like the original, it's licensed under the AGPL-3.0.
 
-An [Etebase](https://www.etebase.com) (EteSync 2.0) server so you can run your own.
-
-[![Chat with us](https://img.shields.io/badge/chat-IRC%20|%20Matrix%20|%20Web-blue.svg)](https://www.etebase.com/community-chat/)
+An Etebase (EteSync 2.0) server so you can run your own.
 
 # Installation
 
@@ -146,7 +143,7 @@ You can now restart the server.
 The 0.5.0 release marks the change to the EteSync 2.0 protocol. EteSync 2.0 accounts are substantially different to 1.0 accounts, and require additional upgrade steps. In addition, the servers are incompatible, so 0.5.0 requires a fresh installation.
 
 Here are the update steps:
-1. Chose any of the [the migration tools](https://www.etesync.com/user-guide/migrate-v2/) and make sure the underlying apps are up to date with all of your data. So for example, if you are using the Android client, make sure to sync before commencing.
+1. Choose a migration tool (the EteSync 1.0 apps of the original project had one) and make sure the underlying apps are up to date with all of your data. So for example, if you are using the Android client, make sure to sync before commencing.
 2. Install the 0.5.0 version to a new path (you can't reuse the same database).
 3. Run the 0.5.0 account and create the appropriate users as described in the installation/upgrade steps above.
 4. Run the migration tool to migrate all of your data.
@@ -187,27 +184,6 @@ In order to set it up, comment out the line `ETEBASE_CREATE_USER_FUNC = "etebase
 
 # License
 
-Etebase is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License version 3 as published by the Free Software Foundation. See the [LICENSE](./LICENSE) for more information.
+Ciphwren Server is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License version 3 as published by the Free Software Foundation. See the [LICENSE](./LICENSE) for more information.
 
 A quick summary can be found [on tldrlegal](https://tldrlegal.com/license/gnu-affero-general-public-license-v3-(agpl-3.0)). Though in even simpler terms (not part of the license, and not legal advice): you can use it in however way you want, including self-hosting and commercial offerings as long as you release the code to any modifications you have made to the server software (clients are not affected).
-
-## Commercial licensing
-
-For commercial licensing options, contact license@etebase.com 
-
-# Financially Supporting Etebase
-
-Please consider registering an account even if you self-host in order to support the development of Etebase, or visit the [contribution](https://www.etesync.com/contribute/) for more information on how to support the service.
-
-Become a financial contributor and help us sustain our community!
-
-## Supporters ($20 / month)
-
-[![jzacsh](https://github.com/jzacsh.png?size=80)](https://github.com/jzacsh)
-
-## Contributors ($10 / month)
-
-[![ilovept](https://github.com/ilovept.png?size=40)](https://github.com/ilovept)
-[![ryanleesipes](https://github.com/ryanleesipes.png?size=40)](https://github.com/ryanleesipes)
-[![DanielG](https://github.com/DanielG.png?size=40)](https://github.com/DanielG)
-[![Kanaye](https://github.com/Kanaye.png?size=40)](https://github.com/Kanaye)
