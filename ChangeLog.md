@@ -1,5 +1,8 @@
 # Changelog
 
+## Version 0.15.7
+- Update FastAPI to 0.163.1
+
 ## Version 0.15.6
 - The images run Python 3.15
 - Update the dependencies: Django 5.2.19, FastAPI 0.162.2, pydantic 2.14.3, redis 8.2.0b1 and opentelemetry-api 1.45.2
