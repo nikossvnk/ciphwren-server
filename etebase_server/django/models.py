@@ -118,8 +118,15 @@ class CollectionItemChunk(models.Model):
     uid = models.CharField(db_index=True, blank=False, null=False, max_length=60, validators=[UidValidator])
     collection = models.ForeignKey(Collection, related_name="chunks", on_delete=models.CASCADE)
     chunkFile = models.FileField(upload_to=chunk_directory_path, max_length=150, unique=True)
+    # Bytes of the file, for counting how much a user stores (filled in for older chunks by a migration)
+    size = models.PositiveBigIntegerField(null=True)
 
     objects: models.manager.BaseManager["CollectionItemChunk"]
+
+    def save(self, *args, **kwargs):
+        if self.size is None and self.chunkFile:
+            self.size = self.chunkFile.size
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.uid
@@ -269,3 +276,18 @@ class UserInfo(models.Model):
 
     def __str__(self):
         return "UserInfo<{}>".format(self.owner)
+
+
+class UserLimits(models.Model):
+    """Limits an account service sets through the internal API. Users without a row have no limits."""
+
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True)
+    # The most bytes of chunks the collections the user owns may hold; None for no limit
+    bytes_limit = models.PositiveBigIntegerField(null=True)
+    # No changes at all, e.g. while the account is suspended
+    read_only = models.BooleanField(default=False)
+
+    objects: models.manager.BaseManager["UserLimits"]
+
+    def __str__(self):
+        return "UserLimits<{}>".format(self.owner)

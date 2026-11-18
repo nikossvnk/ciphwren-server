@@ -75,6 +75,15 @@ class AppSettings:
         return None
 
     @cached_property
+    def INTERNAL_API_SECRETS(self) -> t.List[str]:  # noqa: N802
+        from django.core.exceptions import ImproperlyConfigured
+
+        secrets = list(self._setting("INTERNAL_API_SECRETS", []))
+        if any(len(x) < 32 for x in secrets):
+            raise ImproperlyConfigured("Each internal API secret must be at least 32 characters long.")
+        return secrets
+
+    @cached_property
     def CHUNK_PATH_FUNC(self):  # noqa: N802
         func = self._setting("CHUNK_PATH_FUNC", None)
         if func is not None:
