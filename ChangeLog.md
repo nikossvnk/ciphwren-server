@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.15.6
+- The images run Python 3.15
+- Update the dependencies: Django 5.2.19, FastAPI 0.162.2, pydantic 2.14.3, redis 8.2.0b1 and opentelemetry-api 1.45.2
+
 ## Version 0.15.5
 - Renamed to Ciphwren Server: the images are published as `ghcr.io/nikossvnk/ciphwren-server` and `ghcr.io/nikossvnk/ciphwren-server/test-server`, which the deploy files now use. The test server's build argument is `CIPHWREN_VERSION`
 - Update Caddy to 2.11.9 in the deploy files
