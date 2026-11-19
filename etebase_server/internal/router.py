@@ -94,7 +94,13 @@ class TokenIn(BaseModel):
     token: str
 
 
-@internal_router.post("/whoami/", response_model=UserOut)
+class WhoamiOut(UserOut):
+    # When the token was made; making one needs the password (or the keys derived from it), so an account
+    # service can ask for a recent one before changes like deleting the account
+    token_created: datetime
+
+
+@internal_router.post("/whoami/", response_model=WhoamiOut)
 @django_db_cleanup_decorator
 def whoami(data: TokenIn):
     """Who an Etebase login token belongs to, with the same checks as the API, without renewing the token"""
@@ -105,7 +111,7 @@ def whoami(data: TokenIn):
         raise invalid
     if not token.user.is_active or (token.expiry is not None and token.expiry < timezone.now()):
         raise invalid
-    return UserOut.from_user(token.user)
+    return WhoamiOut(**UserOut.from_user(token.user).model_dump(), token_created=token.created)
 
 
 @internal_router.get("/username-available/")

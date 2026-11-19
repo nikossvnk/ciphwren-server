@@ -296,6 +296,7 @@ async function checkInternalApi(takenEmail) {
   check("log in to the account created through the internal API", etebase.user.email === email);
   const me = await internal("/whoami/", { method: "POST", body: JSON.stringify({ token: etebase.authToken }) });
   check("whoami tells whose token it is", (me.status === 200) && (me.body.username === username.toLowerCase()));
+  check("whoami tells when the token was made", Math.abs(Date.parse(me.body.token_created) - Date.now()) < 60000);
   const byName = await internal(`/users/by-username/${username}/`);
   check("find a user by username", (byName.status === 200) && (byName.body.user_id === me.body.user_id));
   check("an unknown user is not found", (await internal("/users/by-username/nobody-like-this/")).status === 404);

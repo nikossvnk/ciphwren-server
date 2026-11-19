@@ -197,7 +197,8 @@ public reverse proxy forward `/internal/` (`deploy/Caddyfile` answers it with 40
   base64url>", "expected_email": "<the verified address>", "limits": {…}}` (`limits` optional, as below).
   The answer's `login` (base64url) is the response to give back to the client.
 - `GET username-available/?username=…`, `GET users/by-username/<username>/`
-- `POST whoami/` with `{"token": "<an Etebase login token>"}`: whose token it is.
+- `POST whoami/` with `{"token": "<an Etebase login token>"}`: whose token it is, and when it was made
+  (`token_created`: making one needs the password, or the keys derived from it).
 - `GET users/<id>/usage/`: bytes stored in the collections the user owns (all revisions), their limit,
   the number of collections (and how many are shared) and items, the last login.
 - `PUT users/<id>/limits/` with `{"bytes_limit": <bytes or null>, "read_only": <bool>}`.
