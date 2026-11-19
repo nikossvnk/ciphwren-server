@@ -67,12 +67,18 @@ jobs:
 
       - name: Check the test server with the Etebase client
         run: |
-          # With the internal API on, so the smoke test checks it too (only for this test, the image has it off)
+          # With the internal API and the dashboard link on, so the smoke test checks them too (only for this
+          # test, the image has them off)
           secret="$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
-          docker run -d --name test-server -e ETEBASE_INTERNAL_API_SECRET="$secret" -p 127.0.0.1:3735:3735 test-server
+          ticket_secret="$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
+          dashboard=https://app.example.com/ticket
+          docker run -d --name test-server -e ETEBASE_INTERNAL_API_SECRET="$secret" \
+            -e ETEBASE_DASHBOARD_URL="$dashboard" -e ETEBASE_DASHBOARD_TICKET_SECRET="$ticket_secret" \
+            -p 127.0.0.1:3735:3735 test-server
           timeout 60 sh -c 'until curl -sf -o /dev/null http://127.0.0.1:3735/api/v1/authentication/is_etebase/; do sleep 1; done'
           npm ci --prefix tests/smoke
-          INTERNAL_API_SECRET="$secret" node tests/smoke/smoke.js http://127.0.0.1:3735
+          INTERNAL_API_SECRET="$secret" DASHBOARD_URL="$dashboard" DASHBOARD_TICKET_SECRET="$ticket_secret" \
+            node tests/smoke/smoke.js http://127.0.0.1:3735
 
       - name: Check the server image
         run: |

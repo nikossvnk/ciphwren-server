@@ -144,6 +144,10 @@ ETEBASE_CREATE_USER_FUNC = "etebase_server.django.utils.create_user_blocked"
 # The internal API for an account service (etebase_server/internal): off unless a secret is set. Several
 # secrets, separated by commas, are accepted at the same time while switching to a new one.
 ETEBASE_INTERNAL_API_SECRETS = [x for x in os.environ.get("ETEBASE_INTERNAL_API_SECRET", "").split(",") if x]
+# The apps' "Account Dashboard" button: the dashboard's address (e.g. https://app.example.com/ticket) and the
+# secret (at least 32 characters) the account service checks its one-time login tickets with
+ETEBASE_DASHBOARD_URL = os.environ.get("ETEBASE_DASHBOARD_URL", "")
+ETEBASE_DASHBOARD_TICKET_SECRET = os.environ.get("ETEBASE_DASHBOARD_TICKET_SECRET", "")
 
 # Use config file if present
 if any(os.path.isfile(x) for x in config_locations):
@@ -221,6 +225,13 @@ if ETEBASE_INTERNAL_API_SECRETS:
         *locals().get("ETEBASE_API_PERMISSIONS_WRITE", []),
         "etebase_server.internal.quota.check_quota",
     ]
+
+if ETEBASE_DASHBOARD_URL:
+    if len(ETEBASE_DASHBOARD_TICKET_SECRET) < 32:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured("ETEBASE_DASHBOARD_URL needs ETEBASE_DASHBOARD_TICKET_SECRET (32+ characters).")
+    ETEBASE_DASHBOARD_URL_FUNC = "etebase_server.internal.dashboard.dashboard_url"
 
 if "SECRET_KEY" not in locals():
     SECRET_KEY = get_secret_from_file(SECRET_FILE)

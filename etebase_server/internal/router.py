@@ -1,8 +1,12 @@
 import hmac
+import logging
+import os
 import typing as t
 from datetime import datetime
 
 from django.core import exceptions as django_exceptions
+from django.core.files.storage import default_storage
+from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -20,6 +24,7 @@ from etebase_server.internal.quota import bytes_used
 from etebase_server.myauth.models import UserType, get_typed_user_model
 
 User = get_typed_user_model()
+logger = logging.getLogger(__name__)
 
 
 class InternalApiError(Exception):
@@ -221,3 +226,84 @@ def usage(user_id: int):
 def set_limits(user_id: int, data: LimitsIn):
     user = get_user(user_id)
     models.UserLimits.objects.update_or_create(owner=user, defaults=data.model_dump())
+
+
+class EmailIn(BaseModel):
+    email: str
+
+
+@internal_router.put("/users/{user_id}/email/", status_code=status.HTTP_204_NO_CONTENT)
+@django_db_cleanup_decorator
+def set_email(user_id: int, data: EmailIn):
+    """Changes the address the user logs in with and is invited by; the account service verified it"""
+    user = get_user(user_id)
+    try:
+        validate_email(data.email)
+    except django_exceptions.ValidationError:
+        raise InternalApiError("invalid_email", "Not a valid email address.")
+    if user.email.lower() == data.email.lower():
+        return
+    if email_taken(data.email):
+        raise InternalApiError("email_taken", "Another user has this email address.", status.HTTP_409_CONFLICT)
+    user.email = data.email
+    user.save(update_fields=["email"])
+
+
+def set_active(user: UserType, active: bool):
+    user.is_active = active
+    user.save(update_fields=["is_active"])
+
+
+@internal_router.post("/users/{user_id}/suspend/", status_code=status.HTTP_204_NO_CONTENT)
+@django_db_cleanup_decorator
+def suspend(user_id: int):
+    """Stops the user's every login at once (the API refuses inactive users), e.g. before deleting or for abuse"""
+    set_active(get_user(user_id), False)
+
+
+@internal_router.post("/users/{user_id}/unsuspend/", status_code=status.HTTP_204_NO_CONTENT)
+@django_db_cleanup_decorator
+def unsuspend(user_id: int):
+    set_active(get_user(user_id), True)
+
+
+def delete_chunk_files(names: t.List[str]):
+    """Removes the files, then the folders they leave empty"""
+    folders = set()
+    for name in names:
+        try:
+            default_storage.delete(name)
+        except OSError:
+            logger.warning("Could not delete the chunk file %s", name)
+        folders.add(os.path.dirname(name))
+    # Deepest first, so a folder's subfolders are gone before it is tried
+    for folder in sorted(folders, key=len, reverse=True):
+        while folder:
+            try:
+                os.rmdir(default_storage.path(folder))
+            except OSError:
+                # Not empty (or already gone): the folders above it aren't empty either
+                break
+            folder = os.path.dirname(folder)
+
+
+@internal_router.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@django_db_cleanup_decorator
+def delete_user(user_id: int):
+    """Deletes the user with everything they own, their files too. Deleting a deleted user does nothing."""
+    user = User.objects.filter(id=user_id).first()
+    if user is None:
+        return
+    # First stop every login, so nothing is written while the user is being deleted
+    set_active(user, False)
+    with transaction.atomic():
+        names = list(
+            models.CollectionItemChunk.objects.filter(collection__owner=user).values_list("chunkFile", flat=True)
+        )
+        # Memberships first: they protect the user's collection types, which Django would otherwise refuse to
+        # delete along with the user. Then the collections the user owns, with their items, chunks and other
+        # members, and then the user with their logins, invitations and limits.
+        models.CollectionMember.objects.filter(user=user).delete()
+        models.Collection.objects.filter(owner=user).delete()
+        user.delete()
+    delete_chunk_files(names)
