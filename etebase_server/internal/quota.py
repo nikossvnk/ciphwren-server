@@ -51,5 +51,5 @@ def check_quota(request: Request, user: UserType = Depends(get_authenticated_use
         raise HttpError(
             "quota_exceeded",
             "Storage limit reached: delete some data to make room.",
-            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status.HTTP_413_CONTENT_TOO_LARGE,
         )
