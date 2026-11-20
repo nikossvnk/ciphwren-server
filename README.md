@@ -197,10 +197,16 @@ public reverse proxy forward `/internal/` (`deploy/Caddyfile` answers it with 40
   base64url>", "expected_email": "<the verified address>", "limits": {…}}` (`limits` optional, as below).
   The answer's `login` (base64url) is the response to give back to the client.
 - `GET username-available/?username=…`, `GET users/by-username/<username>/`
-- `POST whoami/` with `{"token": "<an Etebase login token>"}`: whose token it is.
+- `POST whoami/` with `{"token": "<an Etebase login token>"}`: whose token it is, and when it was made
+  (`token_created`: making one needs the password, or the keys derived from it).
 - `GET users/<id>/usage/`: bytes stored in the collections the user owns (all revisions), their limit,
   the number of collections (and how many are shared) and items, the last login.
 - `PUT users/<id>/limits/` with `{"bytes_limit": <bytes or null>, "read_only": <bool>}`.
+- `PUT users/<id>/email/` with `{"email": "…"}`: the address the user logs in with and is invited by (the
+  account service verifies it first).
+- `POST users/<id>/suspend/` and `unsuspend/`: a suspended user's logins stop working at once.
+- `DELETE users/<id>/`: deletes the user, the collections they own (for their members too), their
+  memberships and their chunk files. Deleting a user that doesn't exist does nothing.
 
 Users with limits can't make changes that would store more than `bytes_limit` in their collections (also
 changes by members of a shared collection count for its owner), and none at all while `read_only`. Small
@@ -209,6 +215,22 @@ tidy up. Users without limits are not affected.
 
 Answers and errors (`{"code": …, "detail": …}`) are JSON. The account service reaches the server by a host
 name that is in `[allowed_hosts]`, or sends one in its `Host` header.
+
+## The apps' "Account Dashboard" button
+
+With `ETEBASE_DASHBOARD_URL` (the dashboard's page for it, e.g. `https://app.example.com/ticket`) and
+`ETEBASE_DASHBOARD_TICKET_SECRET` (at least 32 characters) set, the button opens the dashboard with a one-time
+login ticket in the URL's fragment: `<payload>.<signature>`, both base64url, where the payload is JSON
+`{"uid": <user id>, "exp": <unix time, a minute ahead>, "nonce": "…"}` and the signature its HMAC-SHA256 with
+the secret. The dashboard's account service checks the signature, the expiry and that the nonce wasn't used.
+
+# Wrong passwords
+
+After 5 wrong passwords in a row for a user, from any address, each next try has to wait: 1 second, then twice
+as long after each further wrong password, up to a minute (answer 429 `too_many_attempts` until then). It's a
+slowdown, not a lockout: someone trying wrong passwords on purpose can make the user wait up to a minute, not
+lock them out. The count is forgotten after the right password or 15 minutes. It's kept in Django's cache, per
+server process.
 
 # License
 

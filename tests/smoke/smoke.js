@@ -9,6 +9,8 @@ const colType = "smoke.test";
 // With INTERNAL_API_SECRET set (the server's ETEBASE_INTERNAL_API_SECRET) the internal API is checked too;
 // without it, the internal API must not exist
 const internalSecret = process.env.INTERNAL_API_SECRET;
+// With DASHBOARD_URL and DASHBOARD_TICKET_SECRET set (as the server's ETEBASE_ ones) the dashboard link is checked
+const dashboardSecret = process.env.DASHBOARD_TICKET_SECRET;
 
 function check(what, condition) {
   if (!condition) {
@@ -151,13 +153,72 @@ async function rejects(what, error, promise) {
   await etebase.logout();
   await rejects("requests after logging out are rejected", undefined, colMgr.list(colType));
 
-  await checkInternalApi();
+  await checkLoginSlowdown();
+  await checkInternalApi(`${username}@example.com`);
 
   console.log("All checks passed");
 })().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Forwards requests to the server and keeps the last body sent to each path
+function startRecordingProxy(bodies) {
+  const server = http.createServer((req, res) => {
+    const parts = [];
+    req.on("data", (x) => parts.push(x));
+    req.on("end", async () => {
+      const body = Buffer.concat(parts);
+      bodies[req.url] = body;
+      const headers = {};
+      for (const name of ["content-type", "accept", "authorization"]) {
+        if (req.headers[name]) {
+          headers[name] = req.headers[name];
+        }
+      }
+      const forwarded = await fetch(serverUrl + req.url, { method: req.method, headers, body: body.length ? body : undefined });
+      res.writeHead(forwarded.status, { "Content-Type": forwarded.headers.get("content-type") || "application/msgpack" });
+      res.end(Buffer.from(await forwarded.arrayBuffer()));
+    });
+  });
+  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
+}
+
+async function checkLoginSlowdown() {
+  const username = `slow${Date.now()}`;
+  const password = "a password for the slowdown test";
+  await (await Etebase.Account.signup({ username, email: `${username}@example.com` }, password, serverUrl)).logout();
+
+  // A login with a wrong password, sent again and again (it's valid as long as its challenge, a minute)
+  const bodies = {};
+  const proxy = await startRecordingProxy(bodies);
+  try {
+    await rejects("log in with a wrong password", Etebase.UnauthorizedError,
+      Etebase.Account.login(username, "not the password", `http://127.0.0.1:${proxy.address().port}/`));
+  } finally {
+    proxy.close();
+  }
+  const wrongLogin = bodies["/api/v1/authentication/login/"];
+  const tryAgain = async () => (await fetch(`${serverUrl}/api/v1/authentication/login/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/msgpack", Accept: "application/msgpack" },
+    body: wrongLogin,
+  })).status;
+
+  const statuses = [];
+  for (let i = 0; i < 4; i++) {
+    statuses.push(await tryAgain());
+  }
+  check("five wrong passwords in a row are just refused", statuses.every((x) => x === 401));
+  check("after five the next try has to wait", (await tryAgain()) === 429);
+  await sleep(1100);
+  const etebase = await Etebase.Account.login(username, password, serverUrl);
+  check("after waiting the right password works", etebase.user.username === username);
+  check("the right password starts the count again", (await tryAgain()) === 401);
+  await etebase.logout();
+}
 
 async function internal(path, options = {}, secret = internalSecret) {
   const res = await fetch(`${serverUrl}/internal/v1${path}`, {
@@ -188,7 +249,7 @@ function startSignupProxy(expectedEmail, signupBodies) {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
 }
 
-async function checkInternalApi() {
+async function checkInternalApi(takenEmail) {
   if (!internalSecret) {
     const res = await fetch(`${serverUrl}/internal/v1/whoami/`, { method: "POST" });
     check("the internal API doesn't exist without a secret", res.status === 404);
@@ -235,6 +296,7 @@ async function checkInternalApi() {
   check("log in to the account created through the internal API", etebase.user.email === email);
   const me = await internal("/whoami/", { method: "POST", body: JSON.stringify({ token: etebase.authToken }) });
   check("whoami tells whose token it is", (me.status === 200) && (me.body.username === username.toLowerCase()));
+  check("whoami tells when the token was made", Math.abs(Date.parse(me.body.token_created) - Date.now()) < 60000);
   const byName = await internal(`/users/by-username/${username}/`);
   check("find a user by username", (byName.status === 200) && (byName.body.user_id === me.body.user_id));
   check("an unknown user is not found", (await internal("/users/by-username/nobody-like-this/")).status === 404);
@@ -281,6 +343,32 @@ async function checkInternalApi() {
   await quotaItemMgr.batch([await quotaItemMgr.create({ name: "Without limits" }, random(200 * 1024))]);
   check("without limits a big change is accepted", (await usage()).bytes_limit === null);
 
+  // The apps' "Account Dashboard" button
+  if (dashboardSecret) {
+    const [link, ticket] = (await etebase.getDashboardUrl()).split("#");
+    const [payload, signature] = ticket.split(".");
+    const expected = require("crypto").createHmac("sha256", dashboardSecret)
+      .update(Buffer.from(payload, "base64url")).digest("base64url");
+    const data = JSON.parse(Buffer.from(payload, "base64url"));
+    const validFor = data.exp - (Date.now() / 1000);
+    check("the dashboard link goes to the dashboard", link === process.env.DASHBOARD_URL);
+    check("the dashboard ticket is signed", signature === expected);
+    check("the dashboard ticket is for the user, for a minute",
+      (data.uid === userId) && (validFor > 50) && (validFor <= 60) && (data.nonce.length > 0));
+  } else {
+    await rejects("without a dashboard there is no dashboard link", undefined, etebase.getDashboardUrl());
+  }
+
+  // Changing the email address
+  const setEmail = async (address) => internal(`/users/${userId}/email/`, { method: "PUT", body: JSON.stringify({ email: address }) });
+  check("an invalid email address is refused", (await setEmail("not an address")).body.code === "invalid_email");
+  check("another user's email address is refused", (await setEmail(takenEmail.toUpperCase())).body.code === "email_taken");
+  check("the same email address again is fine", (await setEmail(email)).status === 204);
+  const newEmail = `new-${email}`;
+  check("change the email address", (await setEmail(newEmail)).status === 204);
+  const byEmail = await Etebase.Account.login(newEmail, password, serverUrl);
+  check("log in with the new email address", byEmail.user.email === newEmail);
+
   // Account.logout() doesn't wait for the server, so log out with a request of our own
   const token = etebase.authToken;
   await fetch(`${serverUrl}/api/v1/authentication/logout/`, { method: "POST", headers: { Authorization: `Token ${token}` } });
@@ -288,4 +376,18 @@ async function checkInternalApi() {
   check("whoami refuses a token after logging out", (loggedOut.status === 401) && (loggedOut.body.code === "invalid_token"));
   check("whoami refuses a made-up token",
     (await internal("/whoami/", { method: "POST", body: JSON.stringify({ token: "x".repeat(40) }) })).status === 401);
+
+  // Suspending and deleting
+  const again = await Etebase.Account.login(username, password, serverUrl);
+  const againColMgr = again.getCollectionManager();
+  check("suspend a user", (await internal(`/users/${userId}/suspend/`, { method: "POST" })).status === 204);
+  await rejects("a suspended user can't sync", undefined, againColMgr.list(colType));
+  check("unsuspend a user", (await internal(`/users/${userId}/unsuspend/`, { method: "POST" })).status === 204);
+  check("an unsuspended user can sync again", (await againColMgr.list(colType)).data.length > 0);
+  check("delete a user", (await internal(`/users/${userId}/`, { method: "DELETE" })).status === 204);
+  await rejects("a deleted user can't sync", undefined, againColMgr.list(colType));
+  await rejects("a deleted user can't log in", undefined, Etebase.Account.login(username, password, serverUrl));
+  check("a deleted user is gone",
+    ((await internal(`/users/by-username/${username}/`)).status === 404) && ((await internal(`/users/${userId}/usage/`)).status === 404));
+  check("deleting a deleted user does nothing", (await internal(`/users/${userId}/`, { method: "DELETE" })).status === 204);
 }

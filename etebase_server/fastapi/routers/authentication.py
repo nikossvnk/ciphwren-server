@@ -1,3 +1,5 @@
+import math
+import time
 import typing as t
 from datetime import datetime
 
@@ -9,6 +11,7 @@ import nacl.signing
 from django.conf import settings
 from django.contrib.auth import user_logged_in, user_logged_out
 from django.core import exceptions as django_exceptions
+from django.core.cache import cache
 from django.db import transaction
 from django.utils.functional import cached_property
 from fastapi import APIRouter, Depends, Request, status
@@ -166,11 +169,49 @@ def validate_login_request(
         raise HttpError(
             "wrong_host", f'Found wrong host name. Got: "{validated_data.host}" expected: "{host_from_request}"'
         )
+    check_login_delay(user)
     verify_key = nacl.signing.VerifyKey(bytes(user.userinfo.loginPubkey), encoder=nacl.encoding.RawEncoder)
     try:
         verify_key.verify(challenge_sent_to_user.response, challenge_sent_to_user.signature)
     except nacl.exceptions.BadSignatureError:
+        record_login_failure(user)
         raise HttpError("login_bad_signature", "Wrong password for user.", status.HTTP_401_UNAUTHORIZED)
+    cache.delete(login_failures_key(user))
+
+
+# Slowing down password guessing per user, from any number of addresses: after a few wrong passwords in a row,
+# the next try has to wait, twice as long after each further wrong one, up to a minute. Not a lockout, which
+# would let anyone lock a user out on purpose. Counted in Django's cache (per server process by default).
+LOGIN_FREE_FAILURES = 5
+LOGIN_MAX_DELAY = 60
+LOGIN_FAILURES_KEPT = 15 * 60
+
+
+def login_failures_key(user: UserType) -> str:
+    return f"etebase-login-failures:{user.id}"
+
+
+def check_login_delay(user: UserType):
+    state = cache.get(login_failures_key(user))
+    if state is None:
+        return
+    failures, last_failure = state
+    if failures < LOGIN_FREE_FAILURES:
+        return
+    delay = min(2 ** (failures - LOGIN_FREE_FAILURES), LOGIN_MAX_DELAY)
+    remaining = last_failure + delay - time.time()
+    if remaining > 0:
+        raise HttpError(
+            "too_many_attempts",
+            f"Too many wrong passwords: try again in {math.ceil(remaining)} seconds.",
+            status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+
+def record_login_failure(user: UserType):
+    state = cache.get(login_failures_key(user))
+    failures = state[0] if state is not None else 0
+    cache.set(login_failures_key(user), (failures + 1, time.time()), LOGIN_FAILURES_KEPT)
 
 
 @authentication_router.get("/is_etebase/")
