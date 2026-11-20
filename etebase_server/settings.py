@@ -141,6 +141,10 @@ config_locations = [
 
 ETEBASE_CREATE_USER_FUNC = "etebase_server.django.utils.create_user_blocked"
 
+# The internal API for an account service (etebase_server/internal): off unless a secret is set. Several
+# secrets, separated by commas, are accepted at the same time while switching to a new one.
+ETEBASE_INTERNAL_API_SECRETS = [x for x in os.environ.get("ETEBASE_INTERNAL_API_SECRET", "").split(",") if x]
+
 # Use config file if present
 if any(os.path.isfile(x) for x in config_locations):
     config = configparser.ConfigParser()
@@ -210,6 +214,13 @@ try:
     from etebase_server_settings import *  # noqa: F403
 except ImportError:
     pass
+
+# With the internal API, users can get storage limits; the check only does something for users that have them
+if ETEBASE_INTERNAL_API_SECRETS:
+    ETEBASE_API_PERMISSIONS_WRITE = [
+        *locals().get("ETEBASE_API_PERMISSIONS_WRITE", []),
+        "etebase_server.internal.quota.check_quota",
+    ]
 
 if "SECRET_KEY" not in locals():
     SECRET_KEY = get_secret_from_file(SECRET_FILE)

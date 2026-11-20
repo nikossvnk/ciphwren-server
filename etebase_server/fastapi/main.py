@@ -4,10 +4,14 @@ from django.conf import settings
 
 # Not at the top of the file because we first need to setup django
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+from etebase_server.django import app_settings
 
 from .exceptions import CustomHttpException
 from .msgpack import MsgpackResponse
@@ -66,6 +70,13 @@ def create_application(prefix="", middlewares=[]):
 
         app.include_router(test_reset_view_router, prefix=f"{BASE_PATH}/test/authentication")
 
+    if app_settings.INTERNAL_API_SECRETS:
+        from etebase_server.internal.router import InternalApiError, internal_api_error_handler, internal_router
+
+        # Not under the API path, so the public reverse proxy can leave it out and CORS doesn't apply
+        app.include_router(internal_router, prefix=f"{prefix}/internal/v1", tags=["internal"])
+        app.add_exception_handler(InternalApiError, internal_api_error_handler)
+
     app.add_middleware(
         APICORSMiddleware,
         api_prefix=f"{BASE_PATH}/",
@@ -100,10 +111,10 @@ def create_application(prefix="", middlewares=[]):
         from pydantic import TypeAdapter
 
         errors = TypeAdapter(t.Dict[str, t.Any])
-        return MsgpackResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=errors.dump_python({"detail": exc.errors()}),
-        )
+        content = {"detail": exc.errors()}
+        if request.url.path.startswith(f"{prefix}/internal/"):
+            return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=jsonable_encoder(content))
+        return MsgpackResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=errors.dump_python(content))
 
     app.mount(settings.STATIC_URL, StaticFiles(directory=settings.STATIC_ROOT), name="static")
 

@@ -182,6 +182,34 @@ However, this does come with the added risk that everybody with access to your s
 
 In order to set it up, comment out the line `ETEBASE_CREATE_USER_FUNC = "etebase_server.django.utils.create_user_blocked"` in `server/settings.py` and restart your Etebase server.
 
+## Signup through an account service (internal API)
+
+A hosted server can leave signup closed and let an account service (one that verifies email addresses, for
+example) create the users instead. Set the environment variable `ETEBASE_INTERNAL_API_SECRET` to a random
+secret of at least 32 characters (several, separated by commas, while switching to a new one): the server
+then serves an internal API under `/internal/v1/`, for requests with the header `Authorization: Internal
+<secret>`. Without the variable these routes don't exist.
+
+The internal API must only be reachable from the private network the account service runs in: never let the
+public reverse proxy forward `/internal/` (`deploy/Caddyfile` answers it with 404). Its endpoints:
+
+- `POST signup/`: creates a user from a client's signup request, `{"signup": "<the client's request body,
+  base64url>", "expected_email": "<the verified address>", "limits": {…}}` (`limits` optional, as below).
+  The answer's `login` (base64url) is the response to give back to the client.
+- `GET username-available/?username=…`, `GET users/by-username/<username>/`
+- `POST whoami/` with `{"token": "<an Etebase login token>"}`: whose token it is.
+- `GET users/<id>/usage/`: bytes stored in the collections the user owns (all revisions), their limit,
+  the number of collections (and how many are shared) and items, the last login.
+- `PUT users/<id>/limits/` with `{"bytes_limit": <bytes or null>, "read_only": <bool>}`.
+
+Users with limits can't make changes that would store more than `bytes_limit` in their collections (also
+changes by members of a shared collection count for its owner), and none at all while `read_only`. Small
+requests (up to 16 KiB, like deleting an item) may go up to 1 MiB over the limit, so a full account can still
+tidy up. Users without limits are not affected.
+
+Answers and errors (`{"code": …, "detail": …}`) are JSON. The account service reaches the server by a host
+name that is in `[allowed_hosts]`, or sends one in its `Host` header.
+
 # License
 
 Ciphwren Server is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License version 3 as published by the Free Software Foundation. See the [LICENSE](./LICENSE) for more information.

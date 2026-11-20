@@ -1,10 +1,14 @@
 // Checks a running test server the way a client uses it, with the real Etebase client.
 // It needs a server that allows signing up, like the test-server image:
 //   npm install --prefix tests/smoke && node tests/smoke/smoke.js http://127.0.0.1:3735
+const http = require("http");
 const Etebase = require("etebase");
 
 const serverUrl = process.argv[2] || "http://127.0.0.1:3735";
 const colType = "smoke.test";
+// With INTERNAL_API_SECRET set (the server's ETEBASE_INTERNAL_API_SECRET) the internal API is checked too;
+// without it, the internal API must not exist
+const internalSecret = process.env.INTERNAL_API_SECRET;
 
 function check(what, condition) {
   if (!condition) {
@@ -147,8 +151,141 @@ async function rejects(what, error, promise) {
   await etebase.logout();
   await rejects("requests after logging out are rejected", undefined, colMgr.list(colType));
 
+  await checkInternalApi();
+
   console.log("All checks passed");
 })().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+async function internal(path, options = {}, secret = internalSecret) {
+  const res = await fetch(`${serverUrl}/internal/v1${path}`, {
+    ...options,
+    headers: { Authorization: `Internal ${secret}`, "Content-Type": "application/json" },
+  });
+  const text = await res.text();
+  return { status: res.status, body: text ? JSON.parse(text) : null };
+}
+
+// Stands in for the account service: gets the client's signup request and creates the user through the
+// internal API, with the email address it verified
+function startSignupProxy(expectedEmail, signupBodies) {
+  const server = http.createServer((req, res) => {
+    const parts = [];
+    req.on("data", (x) => parts.push(x));
+    req.on("end", async () => {
+      const body = Buffer.concat(parts).toString("base64url");
+      signupBodies.push(body);
+      const created = await internal("/signup/", {
+        method: "POST",
+        body: JSON.stringify({ signup: body, expected_email: expectedEmail }),
+      });
+      res.writeHead(created.status, { "Content-Type": "application/msgpack" });
+      res.end(created.status === 201 ? Buffer.from(created.body.login, "base64url") : undefined);
+    });
+  });
+  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
+}
+
+async function checkInternalApi() {
+  if (!internalSecret) {
+    const res = await fetch(`${serverUrl}/internal/v1/whoami/`, { method: "POST" });
+    check("the internal API doesn't exist without a secret", res.status === 404);
+    return;
+  }
+
+  check("the internal API refuses a wrong secret",
+    (await internal("/username-available/?username=x", {}, "not the secret".padEnd(40, "x"))).status === 401);
+
+  const username = `Internal${Date.now()}`;
+  const email = `${username.toLowerCase()}@example.com`;
+  const password = "a password for the internal API test";
+  check("a free username is available",
+    (await internal(`/username-available/?username=${username}`)).body.available === true);
+  const withAt = (await internal("/username-available/?username=a%40b")).body;
+  check("a username with @ is invalid", (withAt.available === false) && (withAt.reason === "invalid"));
+
+  const signupBodies = [];
+  const proxy = await startSignupProxy(email, signupBodies);
+  const proxyUrl = `http://127.0.0.1:${proxy.address().port}/`;
+  try {
+    const signedUp = await Etebase.Account.signup({ username, email }, password, proxyUrl);
+    check("sign up through the internal API", signedUp.user.username === username.toLowerCase());
+    await rejects("the same signup again is refused", undefined,
+      Etebase.Account.signup({ username, email }, password, proxyUrl));
+  } finally {
+    proxy.close();
+  }
+  const replay = await internal("/signup/", { method: "POST", body: JSON.stringify({ signup: signupBodies[0], expected_email: email }) });
+  check("an existing user can't sign up again", (replay.status === 409) && (replay.body.code === "user_exists"));
+  const otherEmail = await internal("/signup/", {
+    method: "POST", body: JSON.stringify({ signup: signupBodies[0], expected_email: "other@example.com" }),
+  });
+  check("a signup for another email address is refused",
+    (otherEmail.status === 422) && (otherEmail.body.code === "email_mismatch"));
+  const garbage = await internal("/signup/", { method: "POST", body: JSON.stringify({ signup: "AAAA", expected_email: email }) });
+  check("an unreadable signup is refused", (garbage.status === 400) && (garbage.body.code === "bad_signup"));
+
+  const taken = (await internal(`/username-available/?username=${username.toUpperCase()}`)).body;
+  check("a taken username is not available, in any casing", (taken.available === false) && (taken.reason === "taken"));
+
+  // The account created through the internal API works like any other
+  const etebase = await Etebase.Account.login(username, password, serverUrl);
+  check("log in to the account created through the internal API", etebase.user.email === email);
+  const me = await internal("/whoami/", { method: "POST", body: JSON.stringify({ token: etebase.authToken }) });
+  check("whoami tells whose token it is", (me.status === 200) && (me.body.username === username.toLowerCase()));
+  const byName = await internal(`/users/by-username/${username}/`);
+  check("find a user by username", (byName.status === 200) && (byName.body.user_id === me.body.user_id));
+  check("an unknown user is not found", (await internal("/users/by-username/nobody-like-this/")).status === 404);
+
+  // Usage and storage limits
+  const userId = me.body.user_id;
+  const usage = async () => (await internal(`/users/${userId}/usage/`)).body;
+  const setLimits = async (limits) => (await internal(`/users/${userId}/limits/`, { method: "PUT", body: JSON.stringify(limits) })).status;
+  let used = await usage();
+  check("a new account uses nothing and has no limit",
+    (used.bytes_used === 0) && (used.collections === 0) && (used.items === 0) && (used.bytes_limit === null));
+  check("a negative limit is refused", (await setLimits({ bytes_limit: -1 })) === 422);
+  check("set a storage limit", (await setLimits({ bytes_limit: 100 * 1024 })) === 204);
+
+  const quotaColMgr = etebase.getCollectionManager();
+  const quotaCol = await quotaColMgr.create(colType, { name: "Quota" }, "");
+  await quotaColMgr.upload(quotaCol);
+  const quotaItemMgr = quotaColMgr.getItemManager(quotaCol);
+  // Random, so the content can't be compressed or shared with other chunks
+  const random = (size) => new Uint8Array(require("crypto").randomBytes(size));
+  const small = await quotaItemMgr.create({ name: "Small" }, random(20 * 1024));
+  await quotaItemMgr.batch([small]);
+  used = await usage();
+  check("the usage counts the stored data, collections and items",
+    (used.bytes_used > 20 * 1024) && (used.collections === 1) && (used.items === 1) && (used.collections_shared === 0));
+  check("the usage shows the limit", used.bytes_limit === 100 * 1024);
+
+  const big = await quotaItemMgr.create({ name: "Big" }, random(200 * 1024));
+  await rejects("a change over the storage limit is refused", undefined, quotaItemMgr.batch([big]));
+  check("a refused change stores nothing", (await usage()).bytes_used === used.bytes_used);
+
+  // A full account can still delete, but not add more
+  check("set the limit to what is used", (await setLimits({ bytes_limit: used.bytes_used })) === 204);
+  const more = await quotaItemMgr.create({ name: "More" }, random(20 * 1024));
+  await rejects("a full account can't add data", undefined, quotaItemMgr.batch([more]));
+  small.delete();
+  await quotaItemMgr.batch([small]);
+  check("a full account can delete", (await usage()).items === 0);
+
+  check("make the account read-only", (await setLimits({ read_only: true })) === 204);
+  await rejects("a read-only account can't create a collection", undefined,
+    quotaColMgr.upload(await quotaColMgr.create(colType, { name: "Read-only" }, "")));
+  check("remove the limits", (await setLimits({})) === 204);
+  await quotaItemMgr.batch([await quotaItemMgr.create({ name: "Without limits" }, random(200 * 1024))]);
+  check("without limits a big change is accepted", (await usage()).bytes_limit === null);
+
+  // Account.logout() doesn't wait for the server, so log out with a request of our own
+  const token = etebase.authToken;
+  await fetch(`${serverUrl}/api/v1/authentication/logout/`, { method: "POST", headers: { Authorization: `Token ${token}` } });
+  const loggedOut = await internal("/whoami/", { method: "POST", body: JSON.stringify({ token }) });
+  check("whoami refuses a token after logging out", (loggedOut.status === 401) && (loggedOut.body.code === "invalid_token"));
+  check("whoami refuses a made-up token",
+    (await internal("/whoami/", { method: "POST", body: JSON.stringify({ token: "x".repeat(40) }) })).status === 401);
+}

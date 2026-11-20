@@ -67,10 +67,12 @@ jobs:
 
       - name: Check the test server with the Etebase client
         run: |
-          docker run -d --name test-server -p 127.0.0.1:3735:3735 test-server
+          # With the internal API on, so the smoke test checks it too (only for this test, the image has it off)
+          secret="$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
+          docker run -d --name test-server -e ETEBASE_INTERNAL_API_SECRET="$secret" -p 127.0.0.1:3735:3735 test-server
           timeout 60 sh -c 'until curl -sf -o /dev/null http://127.0.0.1:3735/api/v1/authentication/is_etebase/; do sleep 1; done'
           npm ci --prefix tests/smoke
-          node tests/smoke/smoke.js http://127.0.0.1:3735
+          INTERNAL_API_SECRET="$secret" node tests/smoke/smoke.js http://127.0.0.1:3735
 
       - name: Check the server image
         run: |
@@ -90,6 +92,7 @@ jobs:
           expect "the static files are served" 200 $url/static/admin/css/base.css
           expect "it is not in debug mode" 404 -X POST $url/api/v1/test/authentication/reset/
           expect "other hosts are rejected" 400 -H "Host: other.example" $url/api/v1/authentication/is_etebase/
+          expect "the internal API doesn't exist without a secret" 404 -X POST $url/internal/v1/whoami/
           for path in /docs /redoc /openapi.json; do
             expect "the API documentation is not served ($path)" 404 $url$path
           done

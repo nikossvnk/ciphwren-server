@@ -18,6 +18,9 @@
 		}
 	}
 
+	# The internal API for an account service (if enabled) is only for the private network
+	respond /internal/* 404
+
 	reverse_proxy etebase:3735
 
 	header {
