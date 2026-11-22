@@ -198,6 +198,20 @@ if any(os.path.isfile(x) for x in config_locations):
         ETEBASE_CREATE_USER_FUNC = "etebase_server.myauth.ldap.create_user"
         ETEBASE_API_PERMISSIONS_READ = ["etebase_server.myauth.ldap.is_user_in_ldap"]
 
+# PostgreSQL from the environment, overriding the configuration's [database] (e.g. in the Docker image, whose
+# configuration file is created with SQLite): the password then stays out of files
+if os.environ.get("ETEBASE_DB_HOST"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "HOST": os.environ["ETEBASE_DB_HOST"],
+            "PORT": os.environ.get("ETEBASE_DB_PORT", "5432"),
+            "NAME": os.environ.get("ETEBASE_DB_NAME", "etebase"),
+            "USER": os.environ.get("ETEBASE_DB_USER", "etebase"),
+            "PASSWORD": os.environ.get("ETEBASE_DB_PASSWORD", ""),
+        }
+    }
+
 # SQLite's transactions take the write lock when they start. Otherwise a transaction that read first fails
 # with "database is locked" when it starts writing while another one is writing, without waiting for it.
 if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":

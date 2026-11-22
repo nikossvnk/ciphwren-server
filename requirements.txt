@@ -35,6 +35,10 @@ msgpack==1.2.4
     # via -r requirements.in
 opentelemetry-api==1.45.2
     # via fastapi
+psycopg==3.3.9
+    # via -r requirements.in
+psycopg-binary==3.3.9
+    # via -r requirements.in
 pycparser==3.12
     # via cffi
 pydantic==2.14.3

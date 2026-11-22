@@ -161,7 +161,7 @@ docker exec -it etebase python manage.py createsuperuser
 
 `ETEBASE_ALLOWED_HOSTS` is the host name (or names, separated by commas) the server is reached at. It's only used the first time the server is started, to create `/data/etebase-server.ini`, which can be changed afterwards.
 The server listens on port 3735 without encryption, so put it behind a reverse proxy that handles TLS, as described in the production deployment section above.
-The image uses SQLite. To use another database add its driver to the image and change the `[database]` section of the configuration.
+The image uses SQLite, unless `ETEBASE_DB_HOST` is set: then it uses PostgreSQL with `ETEBASE_DB_HOST`, `ETEBASE_DB_PORT` (5432), `ETEBASE_DB_NAME` (`etebase`), `ETEBASE_DB_USER` (`etebase`) and `ETEBASE_DB_PASSWORD`. These override the `[database]` section of the configuration. Media files (the items' chunks) stay in `/data`.
 
 The image is published to the GitHub container registry when a version tag is pushed.
 
