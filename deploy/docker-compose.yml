@@ -14,6 +14,8 @@ services:
     environment:
       # Only used the first time it's started, to create /data/etebase-server.ini
       ETEBASE_ALLOWED_HOSTS: ${ETEBASE_DOMAIN:?Set ETEBASE_DOMAIN in .env}
+      # "true": the admin site needs a code from an authenticator app too (README.md, "Admin 2FA")
+      ETEBASE_ADMIN_2FA: ${ETEBASE_ADMIN_2FA:-}
     volumes:
       - etebase-data:/data
     # Not published, it's only reachable through Caddy
