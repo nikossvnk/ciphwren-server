@@ -58,6 +58,14 @@ The notes are end-to-end encrypted, so the server (and its backups) can't read t
    sudo docker compose exec etebase python manage.py createsuperuser
    ```
 
+   With `ETEBASE_ADMIN_2FA=true` in `.env` the admin site also asks for a code from an authenticator app. Set
+   it up for the admin account (it prints a QR code and 10 one-time backup codes, once), then restart with
+   `sudo docker compose up -d`:
+
+   ```
+   sudo docker compose exec etebase python manage.py setup_admin_2fa <admin user name>
+   ```
+
 5. Signing up is closed to anyone the admin didn't add, so add the users in the admin site (Users → Add user, only a user name is needed).
    Then create the account in the app ("create an account") with that user name, under "Advanced settings" with the server URL `https://<your host name>`.
    The password chosen there is the user's password, the server never sees it.

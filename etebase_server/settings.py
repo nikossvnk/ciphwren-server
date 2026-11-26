@@ -51,12 +51,17 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    # Django's admin, needing a TOTP code at login when ETEBASE_ADMIN_2FA is on (etebase_server/admin_2fa.py)
+    "etebase_server.apps.AdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    # One-time backup codes, for when the phone with the authenticator app is lost
+    "django_otp.plugins.otp_static",
     "etebase_server.myauth.apps.MyauthConfig",
     "etebase_server.django.apps.DjangoEtebaseConfig",
     "etebase_server.django.token_auth.apps.TokenAuthConfig",
@@ -68,6 +73,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -148,6 +154,11 @@ ETEBASE_INTERNAL_API_SECRETS = [x for x in os.environ.get("ETEBASE_INTERNAL_API_
 # secret (at least 32 characters) the account service checks its one-time login tickets with
 ETEBASE_DASHBOARD_URL = os.environ.get("ETEBASE_DASHBOARD_URL", "")
 ETEBASE_DASHBOARD_TICKET_SECRET = os.environ.get("ETEBASE_DASHBOARD_TICKET_SECRET", "")
+# The admin site asks for a code from an authenticator app after the password (set one up with
+# `manage.py setup_admin_2fa <username>` first, or nobody can log in)
+ETEBASE_ADMIN_2FA = os.environ.get("ETEBASE_ADMIN_2FA", "").lower() in ("1", "true", "yes")
+# The name authenticator apps show for the admin's entry
+OTP_TOTP_ISSUER = "Etebase admin"
 
 # Use config file if present
 if any(os.path.isfile(x) for x in config_locations):

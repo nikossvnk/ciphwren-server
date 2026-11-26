@@ -224,6 +224,15 @@ login ticket in the URL's fragment: `<payload>.<signature>`, both base64url, whe
 `{"uid": <user id>, "exp": <unix time, a minute ahead>, "nonce": "…"}` and the signature its HMAC-SHA256 with
 the secret. The dashboard's account service checks the signature, the expiry and that the nonce wasn't used.
 
+# Admin 2FA
+
+With the environment variable `ETEBASE_ADMIN_2FA=true`, the admin site asks for a code from an authenticator
+app (TOTP) after the password, for every admin user; without one nobody can log in, so set it up first:
+`python manage.py setup_admin_2fa <username>` prints a QR code for the app and 10 one-time backup codes, once
+(`--replace` after a lost phone: the old app and codes stop working). At login, a 6-digit code is checked
+against the app and anything else against the backup codes. After a wrong code, the next one is refused for a
+second, doubling with each further wrong code. Off by default.
+
 # Wrong passwords
 
 After 5 wrong passwords in a row for a user, from any address, each next try has to wait: 1 second, then twice
