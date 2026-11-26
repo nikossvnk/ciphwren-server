@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## Version 0.17.0
 - Admin 2FA: with `ETEBASE_ADMIN_2FA=true` the admin site needs a code from an authenticator app (or a one-time backup code) after the password; `manage.py setup_admin_2fa` sets it up. Off by default
+- Update FastAPI to 0.165.0 and pydantic to 2.14.4
 
 ## Version 0.16.0
 - Internal API for an account service (off unless `ETEBASE_INTERNAL_API_SECRET` is set, never to be exposed publicly): signup through the account service, `whoami`, storage usage and limits per user (enforced on writes), change email, suspend/unsuspend, delete a user with their files
