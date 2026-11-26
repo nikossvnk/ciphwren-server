@@ -122,9 +122,13 @@ jobs:
           timeout 90 sh -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" server-named)" = healthy ]; do sleep 2; done'
           echo "ok - it is healthy"
 
+      - name: Check that the admin site needs a code from an authenticator app with ETEBASE_ADMIN_2FA
+        run: docker/server/check-admin-2fa.sh docker server
+
       - name: Show the logs of the servers
         if: failure()
         run: |
           docker logs test-server || true
           docker logs server || true
           docker logs server-named || true
+          docker logs server-2fa || true

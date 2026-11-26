@@ -1,4 +1,7 @@
 django>=5.2.19,<6.0
+# TOTP for the admin site (ETEBASE_ADMIN_2FA); segno draws the setup QR code in the terminal
+django-otp
+segno
 msgpack
 pynacl
 fastapi>=0.165.0
