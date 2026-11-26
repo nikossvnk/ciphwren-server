@@ -27,7 +27,7 @@ django==5.2.19
     #   django-otp
 django-otp==1.7.5
     # via -r requirements.in
-fastapi==0.163.1
+fastapi==0.165.0
     # via -r requirements.in
 h11==0.16.0
     # via uvicorn
@@ -45,11 +45,11 @@ psycopg-binary==3.3.9
     # via -r requirements.in
 pycparser==3.12
     # via cffi
-pydantic==2.14.3
+pydantic==2.14.4
     # via
     #   -r requirements.in
     #   fastapi
-pydantic-core==2.50.4
+pydantic-core==2.50.5
     # via pydantic
 pynacl==1.6.2
     # via -r requirements.in

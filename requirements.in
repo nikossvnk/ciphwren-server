@@ -4,8 +4,8 @@ django-otp
 segno
 msgpack
 pynacl
-fastapi>=0.163.1
-pydantic>=2.14.3
+fastapi>=0.165.0
+pydantic>=2.14.4
 typing_extensions
 uvicorn[standard]
 aiofiles
